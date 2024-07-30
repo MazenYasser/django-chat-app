@@ -1,0 +1,16 @@
+#!/bin/bash
+
+echo Making migrations...
+python manage.py makemigrations
+
+echo Migrating db...
+python manage.py migrate
+
+echo Creating superuser...
+python manage.py create_super_user
+
+echo Collecting static...
+python manage.py collectstatic --no-input
+
+echo Starting server with Uvicorn...
+gunicorn main.asgi:application --bind 0.0.0.0:8000 --reload -w 2 -t 1 -k uvicorn.workers.UvicornWorker

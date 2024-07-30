@@ -1,0 +1,17 @@
+services:
+  redis:
+    container_name: redis
+    image: redis:alpine
+    
+  django:
+    container_name: django
+    build: .
+    restart: always
+    volumes:
+      - .:/code
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    stdin_open: true
+    tty: true
