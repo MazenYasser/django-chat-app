@@ -20,4 +20,4 @@ class FriendRequest(models.Model):
     accepted = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"Friend request sent at: {self.timestamp} | {self.from_user} - {self.to_user}"
+        return f"Friend request sent at: {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')} | {self.from_user} - {self.to_user}"
