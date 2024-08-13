@@ -11,7 +11,7 @@ class Friend(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Friendship started at: {self.timestamp} | {self.from_user} - {self.to_user}"
+        return f"Friendship started at: {self.timestamp} | {self.friend_1} - {self.friend_2}"
 
 class FriendRequest(models.Model):
     from_user = models.ForeignKey(User, on_delete=models.SET("Deleted User"), related_name="request_sender")

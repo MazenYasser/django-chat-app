@@ -4,7 +4,7 @@ from users.models import User, Friend, FriendRequest
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
-    pass
+    list_display = ["username", "email", "date_joined", "is_active", "is_staff", "is_superuser"]
 
 @admin.register(Friend)
 class FriendAdmin(admin.ModelAdmin):
@@ -12,4 +12,7 @@ class FriendAdmin(admin.ModelAdmin):
 
 @admin.register(FriendRequest)
 class FriendRequestAdmin(admin.ModelAdmin):
-    pass
+    list_display = ["__str__", "accepted"]
+    list_editable = ["accepted"]
+    
+    
