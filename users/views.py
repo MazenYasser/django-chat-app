@@ -22,7 +22,15 @@ class UserViewSet(ModelViewSet):
         else:
             return UserSerializer
 
-    
+    @action(methods=["GET"], detail=False, url_path="user-data")
+    def get_user_data(self, request, *args, **kwargs):
+        if request.user.is_anonymous:
+            return Response({"message": "You are not logged in"}, status=status.HTTP_401_UNAUTHORIZED)
+        user = request.user
+        serializer = self.get_serializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        
     def create(self, request, *args, **kwargs):
         user_data = request.POST
         serializer = self.get_serializer(user_data)
@@ -31,13 +39,13 @@ class UserViewSet(ModelViewSet):
         else:
             return Response(serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
         
-    @action(methods=["GET"], detail=True, url_path="friends")
+    @action(methods=["GET"], detail=False, url_path="friends")
     def get_friend_list(self, request, *args, **kwargs):
         friends_list = get_friend_list(request.user)
         serializer = UserSerializer(friends_list, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @action(methods=["POST"], detail=True, url_path="friend-request")
+    @action(methods=["POST"], detail=False, url_path="friend-request")
     def send_friend_request(self, request, *args, **kwargs):
         sender = request.user
         recpient_name = request.data.get("to_user")
@@ -45,10 +53,13 @@ class UserViewSet(ModelViewSet):
         try:
             recipent = get_user_by_username(recpient_name)
         except User.DoesNotExist:
-            return Response({"message": "User with name " + recpient_name + " does not exist"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "User with name " + recpient_name + " does not exist"}, status=status.HTTP_400_BAD_REQUEST)
         
         if recipent == sender:
             return Response({"message": "Cannot send friend request to yourself!"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if recipent in get_friend_list(sender):
+            return Response({"message": "You are already friends with " + recpient_name}, status=status.HTTP_400_BAD_REQUEST)
         
         serializer = self.get_serializer(data={"to_user": recipent.pk})
 
@@ -57,5 +68,5 @@ class UserViewSet(ModelViewSet):
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-        return Response({"message": "Friend request sent to " + recpient_name}, status=status.HTTP_200_OK)
+        return Response({"message": "Friend request sent to " + recpient_name}, status=status.HTTP_201_CREATED)
             

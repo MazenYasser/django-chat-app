@@ -1,24 +1,79 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
 from datetime import datetime
 import json
+from channels.db import database_sync_to_async 
+from asgiref.sync import sync_to_async
 
 class ChatConsumer(AsyncWebsocketConsumer):
-    # TODO: Add authentication logic to functions
     async def connect(self):
         self.chat_name = self.scope["url_route"]["kwargs"]["user_name"]
         self.chat_group_name = f"chat_{self.chat_name}"
+        current_user = self.scope["user"].pk
+        authenticated_users = self.chat_name.split("_")[1:]
         
-        await self.channel_layer.group_add(self.chat_group_name, self.chat_name)
-        await self.accept()
+        if self.scope["user"].is_authenticated and str(current_user) in authenticated_users:
+            # Add the connection to the group using the channel name
+            await self.channel_layer.group_add(
+                self.chat_group_name,
+                self.channel_name  # Use self.channel_name here
+            )
+            await self.accept()
     
     async def disconnect(self, code):
-        await self.channel_layer.group_discard(self.chat_group_name, self.chat_name)
+        # Remove the connection from the group
+        await self.channel_layer.group_discard(
+            self.chat_group_name,
+            self.channel_name  # Use self.channel_name here
+        )
     
     async def receive(self, text_data=None, bytes_data=None):
+        from .serializers import MessageSerializer
         text_data_json = json.loads(text_data)
         message = text_data_json["message"]
-        await self.channel_layer.group_send(self.chat_group_name, {"type":"chat_message", "message": message})
+        print("Recieved Message: ", message)
+        print("Recieved JSON: ", text_data_json)
+        # Save the message to the database
+        serializer = MessageSerializer(data={
+        'sender': text_data_json["sender"],
+        'receiver': text_data_json["receiver"],
+        'content': text_data_json["message"],
+        })
+        
+        if await sync_to_async(serializer.is_valid)():
+            await database_sync_to_async(serializer.save)()
+            message = serializer.data["content"]
+        else:
+            message = serializer.errors
+        
+        # Send the message to the group
+        await self.channel_layer.group_send(
+            self.chat_group_name,
+            {
+                "type": "chat_message",
+                "message": message
+            }
+        )
     
     async def chat_message(self, event):
         message = event["message"]
-        await self.send(json.dumps({"message": message}))
+        
+        # Send the message to WebSocket
+        await self.send(text_data=json.dumps({
+            "message": message
+        }))
+        
+class StatusConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        self.user = self.scope['user']
+        if self.user.is_authenticated:
+            # Mark user as online
+            await self.set_user_online_status(True)
+            await self.accept()
+
+    async def disconnect(self, code):
+        # Mark user as offline
+        await self.set_user_online_status(False)
+    
+    async def set_user_online_status(self, status):
+        self.user.is_online = status
+        await sync_to_async(self.user.save)()
