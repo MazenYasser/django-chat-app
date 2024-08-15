@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-v!v^7p)(j)1yc9dow=-n5+&x+m(x7ziss88o5)92cs4p#mt^+4
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -41,12 +41,14 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
+    "corsheaders",
     # Local apps
     'users',
     'chats',
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -150,3 +152,5 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1000),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1000),
 }
+
+CORS_ALLOW_ALL_ORIGINS = True

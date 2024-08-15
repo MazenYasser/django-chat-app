@@ -4,7 +4,7 @@ from users.models import User, Friend, FriendRequest
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
-    list_display = ["username", "email", "date_joined", "is_active", "is_staff", "is_superuser"]
+    list_display = ["username", "email", "date_joined", "is_online", "is_active", "is_staff", "is_superuser"]
 
 @admin.register(Friend)
 class FriendAdmin(admin.ModelAdmin):
