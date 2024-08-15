@@ -41,7 +41,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         
         if await sync_to_async(serializer.is_valid)():
             await database_sync_to_async(serializer.save)()
-            message = serializer.data["content"]
+            message = serializer.data
         else:
             message = serializer.errors
         

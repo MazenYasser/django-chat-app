@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .serializers import MessageSerializer, MessageLogSerializer
+from .serializers import MessageSerializer
 from .selectors import get_chat_messages, get_unread_messages
 from rest_framework.decorators import action
 
@@ -11,7 +11,7 @@ class ChatMessagesView(APIView):
         user = request.user
         receiver = kwargs.get('user_id')
         messages = get_chat_messages(user, receiver)
-        serializer = MessageLogSerializer(messages, many=True)
+        serializer = MessageSerializer(messages, many=True)
         return Response(serializer.data)
     
 class MarkChatMessagesAsReadView(APIView):
@@ -29,5 +29,5 @@ class UnreadMessagesView(APIView):
     def get(self, request, *args, **kwargs):
         user = request.user
         messages = get_unread_messages(user)
-        serializer = MessageLogSerializer(messages, many=True)
+        serializer = MessageSerializer(messages, many=True)
         return Response(serializer.data)
