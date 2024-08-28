@@ -46,7 +46,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 f"notification_{message["receiver"]}",
                 {
                     "type": "notify_user",
-                    "notification": f"New message from {message["sender"]}"
+                    "notification": "New message received",
+                    "notification_type": "chat_message",
+                    "sender": message["sender"],
                 }
             )
         else:
@@ -88,7 +90,7 @@ class StatusConsumer(AsyncWebsocketConsumer):
         # Mark user as offline
         await self.set_user_online_status(False)
         self.notification_group_name = f"notification_{self.user.id}"
-        await self.channel_layer.group_add(
+        await self.channel_layer.group_discard(
                 self.notification_group_name,
                 self.channel_name
             )
@@ -99,8 +101,11 @@ class StatusConsumer(AsyncWebsocketConsumer):
         
     async def notify_user(self, event):
         notification = event['notification']
-        
+        notification_type = event['notification_type']
+        sender = event['sender']
         # Send notification to WebSocket
         await self.send(text_data=json.dumps({
-            "notification": notification
+            "notification": notification,
+            "notification_type": notification_type,
+            "sender": sender
         }))

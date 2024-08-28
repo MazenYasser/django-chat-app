@@ -4,12 +4,11 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import action
 from .models import User, StatusChoices
-
 from .selectors import *
 from .serializers import *
-
 from django.contrib.auth.hashers import make_password
-
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 class UserViewSet(ModelViewSet):
     queryset = User.objects.all()
@@ -74,6 +73,15 @@ class UserViewSet(ModelViewSet):
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(f"notification_{recipent.pk}",
+            {
+                "type": "notify_user",
+                "notification": f"You have recieved a friend request from {sender.first_name} {sender.last_name}",
+                "notification_type": "friend_request",
+                }
+        )
+        
         return Response({"message": "Friend request sent to " + recpient_name}, status=status.HTTP_201_CREATED)
 
 class FriendRequestViewset(ModelViewSet):
@@ -92,7 +100,7 @@ class FriendRequestViewset(ModelViewSet):
         friend_request.status = new_request_status
         friend_request.save()
         
-        return Response({"message": "Friend request is" + str(new_request_status).lower()}, status=status.HTTP_200_OK)
+        return Response({"message": "Friend request is " + str(new_request_status).lower()}, status=status.HTTP_200_OK)
     
     def list(self, request, *args, **kwargs):
         friend_request_list = get_pending_friend_requests(request.user)
