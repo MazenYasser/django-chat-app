@@ -12,7 +12,7 @@ class FriendAdmin(admin.ModelAdmin):
 
 @admin.register(FriendRequest)
 class FriendRequestAdmin(admin.ModelAdmin):
-    list_display = ["__str__", "accepted"]
-    list_editable = ["accepted"]
+    list_display = ["__str__", "status"]
+    list_editable = ["status"]
     
     

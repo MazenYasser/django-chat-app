@@ -3,9 +3,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import action
-from .models import User
+from .models import User, StatusChoices
+
 from .selectors import *
-from .serializers import UserRegistrationSerializer, SendFriendRequestSerializer, UserSerializer
+from .serializers import *
+
 from django.contrib.auth.hashers import make_password
 
 
@@ -33,8 +35,6 @@ class UserViewSet(ModelViewSet):
         
     def create(self, request, *args, **kwargs):
         user_data = request.data
-        import pdb
-        pdb.set_trace()
         password = request.data["password"]
         hashed_password = make_password(password)
         request.data["password"] = hashed_password
@@ -75,4 +75,28 @@ class UserViewSet(ModelViewSet):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
         return Response({"message": "Friend request sent to " + recpient_name}, status=status.HTTP_201_CREATED)
-            
+
+class FriendRequestViewset(ModelViewSet):
+    serializer_class = UpdateFriendRequestSerializer
+    queryset = FriendRequest.objects.all()
+    
+    def patch(self, request):
+        friend_request = get_friend_request_by_id(request.data.get("friend_request_id"))
+        if not friend_request:
+            return Response({"message": "Friend request does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if friend_request.status == StatusChoices.ACCEPTED:
+            return Response({"message": "Friend request already accepted"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        new_request_status = request.data.get("status")
+        friend_request.status = new_request_status
+        friend_request.save()
+        
+        return Response({"message": "Friend request is" + str(new_request_status).lower()}, status=status.HTTP_200_OK)
+    
+    def list(self, request, *args, **kwargs):
+        friend_request_list = get_pending_friend_requests(request.user)
+        serializer = FriendRequestSerializer(friend_request_list, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    

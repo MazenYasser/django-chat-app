@@ -25,3 +25,18 @@ class SendFriendRequestSerializer(serializers.ModelSerializer):
         model = FriendRequest
         fields = ["to_user"]
 
+class UpdateFriendRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FriendRequest
+        fields = ["id", "status"]
+
+class FriendRequestSerializer(serializers.ModelSerializer):
+    from_user = serializers.SerializerMethodField("get_from_user")
+    
+    def get_from_user(self, obj):
+        user_data = UserSerializer(obj.from_user).data
+        return user_data["first_name"] + " " + user_data["last_name"]
+    
+    class Meta:
+        model = FriendRequest
+        fields = ["id", "from_user", "to_user"]

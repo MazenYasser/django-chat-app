@@ -1,6 +1,14 @@
+from enum import Enum
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.db import transaction
 
+class StatusChoices(models.TextChoices):
+    PENDING = "PENDING"
+    ACCEPTED = "ACCEPTED"
+    REJECTED = "REJECTED"
+        
+        
 class User(AbstractUser):
     is_online = models.BooleanField(default=False)
     friends = models.ManyToManyField("self", blank=True, symmetrical=False, related_name="friends_with", through="Friend")
@@ -17,12 +25,14 @@ class FriendRequest(models.Model):
     from_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="request_sender")
     to_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="request_receiver")
     timestamp = models.DateTimeField(auto_now_add=True)
-    accepted = models.BooleanField(default=False)
+    status = models.CharField(max_length=20, choices=StatusChoices.choices, default="PENDING")
     
+    
+    @transaction.atomic
     def save(self, *args, **kwargs):    
-        if self.accepted:
-            Friend.objects.create(friend_1=self.from_user, friend_2=self.to_user)
-            Friend.objects.create(friend_1=self.to_user, friend_2=self.from_user)
+        if self.status == StatusChoices.ACCEPTED:
+            Friend.objects.get_or_create(friend_1=self.from_user, friend_2=self.to_user)
+            Friend.objects.get_or_create(friend_1=self.to_user, friend_2=self.from_user)
         super().save(*args, **kwargs)
 
     def __str__(self):
