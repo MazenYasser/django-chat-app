@@ -15,7 +15,7 @@ class SendFriendRequestSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         current_user = self.context["request"].user
-        friend_request = FriendRequest.objects.create(
+        friend_request = FriendRequest.objects.get_or_create(
             from_user=current_user,
             to_user=User.objects.get(username=validated_data["to_user"]),
         )
