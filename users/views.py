@@ -6,7 +6,7 @@ from rest_framework.decorators import action
 from .models import User
 from .selectors import *
 from .serializers import UserRegistrationSerializer, SendFriendRequestSerializer, UserSerializer
-
+from django.contrib.auth.hashers import make_password
 
 
 class UserViewSet(ModelViewSet):
@@ -32,12 +32,18 @@ class UserViewSet(ModelViewSet):
 
         
     def create(self, request, *args, **kwargs):
-        user_data = request.POST
-        serializer = self.get_serializer(user_data)
+        user_data = request.data
+        import pdb
+        pdb.set_trace()
+        password = request.data["password"]
+        hashed_password = make_password(password)
+        request.data["password"] = hashed_password
+        serializer = self.get_serializer(data=user_data)
         if serializer.is_valid():
             serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
-            return Response(serializer.errors, status_code=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
     @action(methods=["GET"], detail=False, url_path="friends")
     def get_friend_list(self, request, *args, **kwargs):

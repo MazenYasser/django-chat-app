@@ -42,9 +42,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if await sync_to_async(serializer.is_valid)():
             await database_sync_to_async(serializer.save)()
             message = serializer.data
+            await self.channel_layer.group_send(
+                f"notification_{message["receiver"]}",
+                {
+                    "type": "notify_user",
+                    "notification": f"New message from {message["sender"]}"
+                }
+            )
         else:
             message = serializer.errors
-        
+            
         # Send the message to the group
         await self.channel_layer.group_send(
             self.chat_group_name,
@@ -68,12 +75,32 @@ class StatusConsumer(AsyncWebsocketConsumer):
         if self.user.is_authenticated:
             # Mark user as online
             await self.set_user_online_status(True)
+            
+            self.notification_group_name = f"notification_{self.user.id}"
+            await self.channel_layer.group_add(
+                self.notification_group_name,
+                self.channel_name
+            )
+            
             await self.accept()
 
     async def disconnect(self, code):
         # Mark user as offline
         await self.set_user_online_status(False)
+        self.notification_group_name = f"notification_{self.user.id}"
+        await self.channel_layer.group_add(
+                self.notification_group_name,
+                self.channel_name
+            )
     
     async def set_user_online_status(self, status):
         self.user.is_online = status
         await sync_to_async(self.user.save)()
+        
+    async def notify_user(self, event):
+        notification = event['notification']
+        
+        # Send notification to WebSocket
+        await self.send(text_data=json.dumps({
+            "notification": notification
+        }))
