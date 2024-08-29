@@ -1,8 +1,10 @@
+from urllib import request
 from channels.generic.websocket import AsyncWebsocketConsumer
 from datetime import datetime
 import json
 from channels.db import database_sync_to_async 
 from asgiref.sync import sync_to_async
+import requests
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -27,23 +29,44 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
     
     async def receive(self, text_data=None, bytes_data=None):
-        from .serializers import MessageSerializer
+        from .views import MarkChatMessagesAsReadView
+        from .selectors import get_chat_unread_messages
         text_data_json = json.loads(text_data)
+        action = text_data_json.get("action")
+
+        if action == "mark_as_read":
+            authenticated_users = self.chat_name.split("_")[1:]
+            messages = await database_sync_to_async(get_chat_unread_messages)(authenticated_users[0], authenticated_users[1])
+            messages_list = await database_sync_to_async(list)(messages)
+            for message in messages_list:
+                message.is_read = True
+                await database_sync_to_async(message.save)()
+            
+            await self.channel_layer.group_send(
+                self.chat_group_name,
+                {
+                    "type": "read_receipt",
+                    "message": "All messages marked as read"
+                }
+            )
+        else:
+            await self.handle_incoming_message(text_data_json)
+
+    async def handle_incoming_message(self, text_data_json):
+        from .serializers import MessageSerializer
         message = text_data_json["message"]
-        print("Recieved Message: ", message)
-        print("Recieved JSON: ", text_data_json)
-        # Save the message to the database
+
         serializer = MessageSerializer(data={
-        'sender': text_data_json["sender"],
-        'receiver': text_data_json["receiver"],
-        'content': text_data_json["message"],
+            'sender': text_data_json["sender"],
+            'receiver': text_data_json["receiver"],
+            'content': text_data_json["message"],
         })
-        
+
         if await sync_to_async(serializer.is_valid)():
             await database_sync_to_async(serializer.save)()
             message = serializer.data
             await self.channel_layer.group_send(
-                f"notification_{message["receiver"]}",
+                f"notification_{message['receiver']}",
                 {
                     "type": "notify_user",
                     "notification": "New message received",
@@ -53,8 +76,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
         else:
             message = serializer.errors
-            
-        # Send the message to the group
+
         await self.channel_layer.group_send(
             self.chat_group_name,
             {
@@ -62,13 +84,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 "message": message
             }
         )
-    
+        
     async def chat_message(self, event):
         message = event["message"]
-        
         # Send the message to WebSocket
         await self.send(text_data=json.dumps({
             "message": message
+        }))
+        
+    async def read_receipt(self, event):
+        # Send read receipt notification to WebSocket
+        await self.send(text_data=json.dumps({
+            "message": event["message"],
+            "status": "read"
         }))
         
 class StatusConsumer(AsyncWebsocketConsumer):
